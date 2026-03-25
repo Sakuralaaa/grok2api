@@ -54,6 +54,20 @@ class ImageGenerationService:
             overrides["enableNsfw"] = bool(enable_nsfw)
         return overrides
 
+    @staticmethod
+    def _app_chat_mode(model_info: Any) -> Optional[str]:
+        """Normalize the app-chat mode used for image generation.
+
+        Grok currently treats MODEL_MODE_FAST + imageGen as a search_images
+        flow instead of a real image generation request. Leaving the mode unset
+        keeps app-chat on the working image-generation path while preserving the
+        existing behavior for other modes.
+        """
+        mode = getattr(model_info, "model_mode", None)
+        if mode == "MODEL_MODE_FAST":
+            return None
+        return mode
+
     async def generate(
         self,
         *,
@@ -289,7 +303,7 @@ class ImageGenerationService:
             token=token,
             message=prompt,
             model=model_info.grok_model,
-            mode=model_info.model_mode,
+            mode=self._app_chat_mode(model_info),
             stream=True,
             tool_overrides={"imageGen": True},
             request_overrides=self._app_chat_request_overrides(n, enable_nsfw),
@@ -328,7 +342,7 @@ class ImageGenerationService:
                 token=token,
                 message=prompt,
                 model=model_info.grok_model,
-                mode=model_info.model_mode,
+                mode=self._app_chat_mode(model_info),
                 stream=True,
                 tool_overrides={"imageGen": True},
                 request_overrides=self._app_chat_request_overrides(
